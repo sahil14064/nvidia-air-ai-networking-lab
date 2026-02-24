@@ -1,0 +1,4 @@
+creation_rules:
+  - path_regex: \.sops\.ya?ml$
+    age: age1suhranahglufhj8xag53upej8qva28k973psdjf96xsqnduakfvs3y620p   # ← paste your public key here
+
