@@ -16,14 +16,23 @@ graph "4_Rail_HPC_Lab" {
     "srv04" [function="server" os="generic/ubuntu2204" cpu="1" memory="2048"]
     
     // Wiring Fat-Tree (spine - leaf)
-    "spine01":"swp1" -- "leaf01":"swp47"
-    "spine01":"swp2" -- "leaf02":"swp48"
-    "spine01":"swp3" -- "leaf03":"swp49"
-    "spine01":"swp4" -- "leaf04":"swp50"
-    "spine02":"swp1" -- "leaf01":"swp47"
-    "spine02":"swp2" -- "leaf02":"swp48"
-    "spine02":"swp3" -- "leaf03":"swp49"
-    "spine02":"swp4" -- "leaf04":"swp50"
+    "spine01":"swp1" -- "leaf01":"swp43"
+    "spine01":"swp2" -- "leaf01":"swp44"
+    "spine01":"swp3" -- "leaf02":"swp45"
+    "spine01":"swp4" -- "leaf02":"swp46"
+    "spine01":"swp5" -- "leaf03":"swp47"
+    "spine01":"swp6" -- "leaf03":"swp48"
+    "spine01":"swp7" -- "leaf04":"swp49"
+    "spine01":"swp8" -- "leaf04":"swp50"
+
+	"spine02":"swp1" -- "leaf01":"swp43"
+    "spine02":"swp2" -- "leaf01":"swp44"
+    "spine02":"swp3" -- "leaf02":"swp45"
+    "spine02":"swp4" -- "leaf02":"swp46"
+    "spine02":"swp5" -- "leaf03":"swp47"
+    "spine02":"swp6" -- "leaf03":"swp48"
+    "spine02":"swp7" -- "leaf04":"swp49"
+    "spine02":"swp8" -- "leaf04":"swp50"
     
     // Wiring Rail 1
     "srv01":"eth0" -- "leaf01":"swp1"
