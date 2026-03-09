@@ -1,0 +1,83 @@
+
+---
+- name: Set system hostname dynamically
+  ansible.builtin.command: hostnamectl set-hostname "{{ inventory_hostname }}"
+  changed_when: false
+  register: hostname_set
+  notify: Reboot if hostname changed
+
+- name: Set hostname via NVUE (Cumulus switches only)
+  when: ansible_network_os == 'cumulus'
+  community.network.nvue_config:
+    commands:
+      - nv set system hostname "{{ inventory_hostname }}"
+    apply: true
+  register: nvue_hostname
+
+- name: Set hostname via hostnamectl (Ubuntu servers)
+  when: ansible_distribution == 'Ubuntu'
+  ansible.builtin.command: hostnamectl set-hostname "{{ inventory_hostname }}"
+  changed_when: false
+
+- name: Set timezone
+  ansible.posix.timezone:
+    name: "{{ timezone | default('Etc/UTC') }}"
+
+- name: Install common tools / packages (Ubuntu / Debian family)
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  loop:
+    - ntp
+    - vim
+    - curl
+    - net-tools
+    - python3-pip
+    - age                # sops (encryption)
+  when: ansible_distribution in ['Ubuntu', 'Debian']
+
+- name: Install sops binary
+  when: ansible_distribution in ['Ubuntu', 'Debian']
+  block:
+    - name: Download latest sops binary (amd64)
+      ansible.builtin.get_url:
+        url: "https://github.com/getsops/sops/releases/download/v3.9.0/sops-v3.9.0.linux.amd64"
+        dest: /usr/local/bin/sops
+        mode: '0755'
+        force: false
+
+    - name: Verify sops is installed
+      ansible.builtin.command: sops --version
+      register: sops_version
+      changed_when: false
+
+    - name: Debug sops version
+      ansible.builtin.debug:
+        msg: "SOPS version: {{ sops_version.stdout }}"
+
+- name: Install community.sops collection
+  ansible.builtin.command: ansible-galaxy collection install community.sops --force
+  args:
+    creates: "{{ ansible_env.HOME }}/.ansible/collections/ansible_collections/community/sops"
+  become: false   # galaxy install usually runs as user
+  delegate_to: localhost
+  run_once: true
+
+- name: Enable and start NTP service
+  ansible.builtin.service:
+    name: ntp
+    state: started
+    enabled: true
+
+- name: Verify hostname
+  ansible.builtin.command: hostname
+  register: current_hostname
+  changed_when: false
+
+- name: Assert hostname matches inventory_hostname
+  ansible.builtin.assert:
+    that: current_hostname.stdout == inventory_hostname
+    fail_msg: "Hostname mismatch! Expected {{ inventory_hostname }}, got {{ current_hostname.stdout }}"
+
+

@@ -1,0 +1,93 @@
+# ansible/roles/underlay/tasks/main.yml
+
+---
+- name: Ensure loopback0 is configured (used as router-id and update-source)
+  nvidia.nvue.loopback:
+    name: lo
+    ip:
+      address:
+        "{{ loopback_ipv4 }}": {}
+    description: "BGP Router-ID + update-source"
+    state: present
+  register: lo_result
+
+- name: Enable BGP globally
+  nvidia.nvue.router.bgp:
+    enable: true
+    autonomous_system: "{{ bgp_as }}"
+    router_id: "{{ loopback_ipv4 | ipaddr('address') }}"
+  register: bgp_global
+
+- name: Leafs – establish BGP unnumbered sessions to spines via interface
+  when: inventory_hostname.startswith('leaf')
+  nvidia.nvue.router.bgp.neighbor:
+    loop: "{{ groups['spines'] }}"
+    loop_control:
+      label: "To spine {{ item }}"
+    vars:
+      peer_hostname: "{{ item }}"
+      # Find the actual swpX interface connected to this spine
+      # For now we assume naming pattern or use facts later; placeholder example
+      peer_interface: "swp{{ 42 + loop.index }}"   # example: swp47 → spine01, swp48 → spine02
+    nvidia.nvue.router.bgp.neighbor:
+      name: "{{ peer_interface }}"           # ← key: neighbor name = interface name
+      interface: "{{ peer_interface }}"
+      remote_as: external
+      update_source: lo
+      address_family:
+        ipv4_unicast:
+          enable: true
+        l2vpn_evpn:
+          enable: true
+      state: present
+
+- name: Spines – accept BGP unnumbered sessions from leafs
+  when: inventory_hostname.startswith('spine')
+  nvidia.nvue.router.bgp.neighbor:
+    loop: "{{ groups['leafs'] }}"
+    loop_control:
+      label: "From leaf {{ item }}"
+    vars:
+      peer_hostname: "{{ item }}"
+      # Again, placeholder – in real life use interface facts or predefined mapping
+      peer_interface: "swp{{ loop.index + 10 }}"   # example placeholder
+    nvidia.nvue.router.bgp.neighbor:
+      name: "{{ peer_interface }}"
+      interface: "{{ peer_interface }}"
+      remote_as: external
+      update_source: lo
+      address_family:
+        ipv4_unicast: { enable: true }
+        l2vpn_evpn: { enable: true }
+      state: present
+
+- name: Enable BGP multipath / ECMP (explicitly set maximum-paths)
+  nvidia.nvue.router.bgp.address_family:
+    ipv4_unicast:
+      maximum_paths: 64          # or 16/32 — high enough for your scale
+    l2vpn_evpn:
+      maximum_paths: 64
+  when: bgp_global.changed or true   # idempotent
+
+- name: Configure ECMP hashing to include L4 ports (better for RoCE/AI traffic)
+  nvidia.nvue.system:
+    forwarding:
+      ecmp_hash:
+        fields:
+          - src-ip
+          - dst-ip
+          - src-port
+          - dst-port
+          - protocol
+  when: "'leafs' in group_names"   # only needed on leaves
+
+# Optional verification step
+- name: Show BGP summary (from this device)
+  ansible.builtin.command: vtysh -c "show bgp summary"
+  register: bgp_summary
+  changed_when: false
+  ignore_errors: true
+
+- name: Display BGP summary for quick check
+  ansible.builtin.debug:
+    msg: "{{ bgp_summary.stdout_lines | default('No output') }}"

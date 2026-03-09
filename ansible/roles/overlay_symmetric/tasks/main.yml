@@ -1,0 +1,58 @@
+# roles/overlay_symmetric/tasks/main.yml
+
+---
+- name: Define anycast gateway MAC (same across all leaves)
+  ansible.builtin.set_fact:
+    anycast_mac: "00:00:5e:00:01:01"   # standard Cisco/NVIDIA anycast MAC
+
+- name: Create VRFs for each tenant
+  nvidia.nvue.vrf:
+    loop: "{{ tenants }}"
+    loop_control:
+      label: "VRF {{ item.name }}"
+    vars:
+      vrf_name: "{{ item.name }}"
+      l3vni: "{{ item.l3vni }}"
+    nvidia.nvue.vrf:
+      name: "{{ vrf_name }}"
+      state: present
+      vxlan_id: "{{ l3vni }}"
+
+- name: Map L3VNI to VRF
+  nvidia.nvue.vxlan:
+    loop: "{{ tenants }}"
+    vars:
+      l3vni: "{{ item.l3vni }}"
+      vrf_name: "{{ item.name }}"
+    nvidia.nvue.vxlan:
+      name: "vni{{ l3vni }}"
+      vxlan_id: "{{ l3vni }}"
+      vrf: "{{ vrf_name }}"
+      state: present
+
+- name: Configure anycast gateway on each VLAN SVI (symmetric IRB)
+  nvidia.nvue.interface:
+    loop: "{{ common_vlans }}"
+    loop_control:
+      label: "VLAN {{ item.vlan }} gateway"
+    vars:
+      vlan_id: "{{ item.vlan }}"
+      tenant_vrf: "{{ item.tenant_vrf | default('red') }}"   # map to VRF
+      gateway_ip: "{{ item.gateway_ip | default('192.168.' ~ vlan_id ~ '.1/24') }}"
+    nvidia.nvue.interface:
+      name: "vlan{{ vlan_id }}"
+      ip:
+        address:
+          "{{ gateway_ip }}": {}
+        anycast_mac: "{{ anycast_mac }}"
+      vrf: "{{ tenant_vrf }}"
+      state: present
+
+- name: Enable symmetric IRB in EVPN (advertise default gateway)
+  nvidia.nvue.evpn:
+    advertise_default_gw: true
+    symmetric_irb: true   # explicit enable (may be default in some Cumulus versions)
+
+- name: Commit all NVUE changes
+  nvidia.nvue.config:
+    apply: true

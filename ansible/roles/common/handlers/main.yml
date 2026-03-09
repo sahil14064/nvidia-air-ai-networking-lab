@@ -1,0 +1,6 @@
+---
+
+- name: Reboot if hostname changed
+  ansible.builtin.reboot:
+    reboot_timeout: 300
+  when: hostname_set.changed or nvue_hostname.changed

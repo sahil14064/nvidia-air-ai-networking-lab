@@ -1,0 +1,26 @@
+---
+
+
+- name: Apply common base configuration (prerequisites)
+  hosts: all
+  gather_facts: false
+  become: true
+
+  roles:
+    - common
+
+  post_tasks:
+    - name: Basic reachability & NTP sync check
+      ansible.builtin.ping:
+      ignore_errors: true
+
+    - name: Verify NTP is running
+      ansible.builtin.service:
+        name: ntp
+        state: started
+      register: ntp_status
+      failed_when: ntp_status.failed
+
+    - name: Show current hostname for confirmation
+      ansible.builtin.debug:
+        msg: "Hostname set to: {{ inventory_hostname }}"

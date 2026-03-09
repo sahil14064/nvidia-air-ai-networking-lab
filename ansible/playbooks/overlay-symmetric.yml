@@ -1,0 +1,50 @@
+---
+# playbooks/02-overlay-symmetric.yml
+
+- name: Deploy symmetric IRB overlay (L3VNI + anycast gateways on all leaves)
+  hosts: switches
+  gather_facts: false
+  become: true
+
+  pre_tasks:
+    - name: Ensure overlay base is applied first
+      ansible.builtin.import_playbook: 01.5-overlay-base.yml
+
+  roles:
+    - overlay_symmetric
+
+  post_tasks:
+    - name: Checkpoint – Verify symmetric IRB config
+      ansible.builtin.command: netq check evpn
+      register: netq_evpn
+      changed_when: false
+      ignore_errors: true
+
+    - name: Assert EVPN and VRF health
+      ansible.builtin.assert:
+        that:
+          - "'FAIL' not in netq_evpn.stdout"
+        fail_msg: "Symmetric overlay verification failed:\n{{ netq_evpn.stdout }}"
+        success_msg: "Symmetric IRB looks healthy"
+
+    - name: Show VRF and L3VNI status from one leaf
+      ansible.builtin.command: vtysh -c "show vrf"
+      delegate_to: "{{ groups['leafs'][0] }}"
+      run_once: true
+      register: vrf_show
+      changed_when: false
+
+    - name: Display VRF summary
+      ansible.builtin.debug:
+        msg: "{{ vrf_show.stdout_lines }}"
+
+    - name: Show anycast gateway IPs
+      ansible.builtin.command: nv show interface vlan all
+      delegate_to: "{{ groups['leafs'][0] }}"
+      run_once: true
+      register: vlan_ip_show
+      changed_when: false
+
+    - name: Display VLAN gateway IPs
+      ansible.builtin.debug:
+        msg: "{{ vlan_ip_show.stdout_lines | select('search', 'ip') | list }}"

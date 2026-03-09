@@ -1,0 +1,55 @@
+---
+- name: Reset L3 overlay configuration (back to pure L2 + EVPN base)
+  hosts: switches
+  gather_facts: false
+  become: true
+  serial: 5   # safety: don't hammer all switches at once
+
+  tasks:
+    - name: Remove all VRFs
+      nvidia.nvue.vrf:
+        name: "{{ item }}"
+        state: absent
+      loop:
+        - red
+        - blue
+      ignore_errors: true
+
+    - name: Remove L3VNIs (if any were created)
+      nvidia.nvue.vxlan:
+        name: "vni{{ item }}"
+        state: absent
+      loop:
+        - 10000
+        - 10001
+      ignore_errors: true
+
+    - name: Remove anycast gateway / IRB SVIs from all VLANs
+      nvidia.nvue.interface:
+        loop: "{{ common_vlans | map(attribute='vlan') | list }}"
+        loop_control:
+          label: "Clean VLAN {{ item }}"
+        nvidia.nvue.interface:
+          name: "vlan{{ item }}"
+          ip:
+            address: {}
+          state: present   # keeps L2, removes L3
+
+    - name: Remove any EVPN VRF mappings
+      nvidia.nvue.evpn:
+        vrf: {}
+        state: absent
+      ignore_errors: true
+
+    - name: Commit NVUE changes
+      nvidia.nvue.config:
+        apply: true
+
+    - name: Verify no L3 gateways remain
+      ansible.builtin.command: nv show interface vlan all
+      register: vlan_show
+      changed_when: false
+
+    - name: Show cleaned VLAN interfaces
+      ansible.builtin.debug:
+        msg: "{{ vlan_show.stdout_lines | select('search', 'ip') | list }}"

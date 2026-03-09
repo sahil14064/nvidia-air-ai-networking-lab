@@ -1,0 +1,34 @@
+# roles/server_network/tasks/main.yml
+
+---
+- name: Set fact for node number (for dynamic IPs)
+  ansible.builtin.set_fact:
+    node_number: "{{ inventory_hostname | regex_replace('[^0-9]', '') | int(default=0) }}"
+
+- name: Generate Netplan config from template
+  ansible.builtin.template:
+    src: netplan-server.yml.j2
+    dest: /etc/netplan/99-ansible-vlans.yaml
+    owner: root
+    group: root
+    mode: '0644'
+  register: netplan_config
+
+- name: Apply Netplan configuration
+  ansible.builtin.command: netplan apply
+  when: netplan_config.changed
+  changed_when: true
+
+- name: Wait for interfaces to come up
+  ansible.builtin.wait_for:
+    timeout: 30
+  ignore_errors: true
+
+- name: Verify VLAN interfaces are up
+  ansible.builtin.command: ip link show type vlan
+  register: vlan_links
+  changed_when: false
+
+- name: Debug VLAN interfaces
+  ansible.builtin.debug:
+    msg: "{{ vlan_links.stdout_lines }}"

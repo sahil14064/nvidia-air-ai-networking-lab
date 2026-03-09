@@ -1,0 +1,22 @@
+---
+# roles/server_network/defaults/main.yml
+
+data_interfaces:
+  - name: eth1   # Rail 2
+  - name: eth2   # Rail 3
+  - name: eth3   # Rail 4
+  # eth0 is OOB — not included here
+
+# Example per-server VLAN mapping (override in group_vars or host_vars)
+server_vlans:
+  - interface: eth1
+    vlan: 20
+    ip: 192.168.20.{{ node_number + 10 }}
+    prefix: 24
+    gateway: 192.168.20.1
+  - interface: eth2
+    vlan: 10
+    ip: 192.168.10.{{ node_number + 10 }}
+    prefix: 24
+    gateway: 192.168.10.1
+  # Add more as needed

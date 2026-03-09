@@ -1,0 +1,10 @@
+node_number: "{{ inventory_hostname | regex_replace('[^0-9]', '') | int(default=0) }}"
+
+bgp_as: >-
+  {% if inventory_hostname.startswith('spine') %}
+  65000
+  {% else %}
+  {{ 65100 + node_number }}
+  {% endif %}
+
+loopback_ipv4: "{{ loopback_pool_base | default('10.10.0.0') | ipaddr('network') | ipmath(node_number) }}/32"

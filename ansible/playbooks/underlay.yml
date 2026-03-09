@@ -1,0 +1,55 @@
+---
+# playbooks/01-underlay.yml
+
+- name: Deploy basic underlay (loopback + BGP enablement)
+  hosts: switches
+  gather_facts: false
+  become: true
+
+  pre_tasks:
+    - name: Ensure common prerequisites are applied
+      ansible.builtin.import_role:
+        name: common
+
+  roles:
+    - underlay
+
+  post_tasks:
+    - name: Wait for BGP to come up (basic delay)
+      ansible.builtin.pause:
+        seconds: 30
+
+    - name: Run NetQ BGP check as checkpoint
+      ansible.builtin.command: netq check bgp
+      register: netq_bgp
+      changed_when: false
+      ignore_errors: true
+
+    - name: Assert BGP check passed (or warn)
+      ansible.builtin.assert:
+        that: "'FAIL' not in netq_bgp.stdout"
+        fail_msg: "BGP underlay verification failed:\n{{ netq_bgp.stdout }}"
+        success_msg: "BGP underlay looks healthy"
+      ignore_errors: true   # for early testing
+
+    - name: Show BGP summary from one spine
+      ansible.builtin.command: vtysh -c "show bgp summary"
+      delegate_to: "{{ groups['spines'][0] }}"   # first spine
+      run_once: true
+      register: spine_bgp
+      changed_when: false
+
+    - name: Display BGP summary
+      ansible.builtin.debug:
+        msg: "{{ spine_bgp.stdout_lines }}"
+
+    - name: Verify ECMP paths exist (show nexthop group)
+      ansible.builtin.command: nv show router nexthop rib
+      register: nexthop_rib
+      changed_when: false
+      delegate_to: "{{ groups['leafs'][0] }}"   # one leaf
+      run_once: true
+
+    - name: Display nexthop groups (look for size 2)
+      ansible.builtin.debug:
+        msg: "{{ nexthop_rib.stdout_lines }}"

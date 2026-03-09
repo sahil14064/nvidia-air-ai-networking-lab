@@ -1,0 +1,36 @@
+---
+- name: Deploy EVPN/VXLAN overlay foundation (common to all variants)
+  hosts: switches
+  gather_facts: false
+  become: true
+
+  pre_tasks:
+    - name: Ensure underlay is ready
+      ansible.builtin.import_playbook: 01-underlay.yml
+
+  roles:
+    - overlay_base
+
+  post_tasks:
+    - name: Checkpoint – Verify EVPN neighbors & VXLAN VTEP
+      ansible.builtin.command: netq check evpn
+      register: netq_evpn
+      changed_when: false
+      ignore_errors: true
+
+    - name: Assert basic EVPN health
+      ansible.builtin.assert:
+        that: "'FAIL' not in netq_evpn.stdout"
+        fail_msg: "EVPN foundation check failed:\n{{ netq_evpn.stdout }}"
+        success_msg: "EVPN base looks healthy (neighbors up, VTEPs advertised)"
+
+    - name: Show EVPN summary from one leaf
+      ansible.builtin.command: vtysh -c "show evpn vni"
+      delegate_to: "{{ groups['leafs'][0] }}"
+      run_once: true
+      register: evpn_vni
+      changed_when: false
+
+    - name: Display EVPN VNI status
+      ansible.builtin.debug:
+        msg: "{{ evpn_vni.stdout_lines }}"

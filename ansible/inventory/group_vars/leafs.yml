@@ -1,0 +1,25 @@
+---
+
+tenants:
+  - name: red
+    l3vni: 10000
+  - name: blue
+    l3vni: 10001
+
+common_vlans:
+  - vlan: 10
+    vni: 10
+    tenant_vrf: red
+    gateway_ip: 172.16.10.1/24     # anycast gateway
+  - vlan: 11
+    vni: 11
+    tenant_vrf: red
+    gateway_ip: 172.16.11.1/24
+  - vlan: 20
+    vni: 20
+    tenant_vrf: blue
+    gateway_ip: 172.16.20.1/24
+  - vlan: 21
+    vni: 21
+    tenant_vrf: blue
+    gateway_ip: 172.16.21.1/24

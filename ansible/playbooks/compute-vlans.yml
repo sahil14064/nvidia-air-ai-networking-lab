@@ -1,0 +1,26 @@
+---
+# playbooks/06-server-vlans.yml
+
+- name: Configure VLANs on Ubuntu servers (GPU nodes)
+  hosts: servers
+  become: true
+  gather_facts: true   # Need distribution facts
+
+  roles:
+    - server_network
+
+  post_tasks:
+    - name: Verify connectivity in VLANs
+      ansible.builtin.ping:
+        dest: "{{ item.gateway }}"
+      loop: "{{ server_vlans }}"
+      ignore_errors: true
+
+    - name: Show IP addresses on server
+      ansible.builtin.command: ip addr show
+      register: ip_addr
+      changed_when: false
+
+    - name: Display server IPs
+      ansible.builtin.debug:
+        msg: "{{ ip_addr.stdout_lines | select('search', 'vlan') | list }}"

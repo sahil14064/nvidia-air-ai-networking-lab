@@ -1,0 +1,29 @@
+# /etc/netplan/99-ansible-vlans.yaml
+# Managed by Ansible - do not edit manually
+
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    eth0:                  # OOB management – leave as DHCP from Air
+      dhcp4: true
+      optional: true
+
+  ethernets:
+{% for iface in data_interfaces %}
+    {{ iface.name }}:
+      dhcp4: false
+      optional: true
+{% endfor %}
+
+  vlans:
+{% for vlan_config in server_vlans %}
+    vlan{{ vlan_config.vlan }}:
+      id: {{ vlan_config.vlan }}
+      link: {{ vlan_config.interface }}
+      addresses: [{{ vlan_config.ip }}/{{ vlan_config.prefix | default(24) }}]
+      gateway4: {{ vlan_config.gateway | default(omit) }}
+      nameservers:
+        addresses: [8.8.8.8, 1.1.1.1]
+      optional: true
+{% endfor %}

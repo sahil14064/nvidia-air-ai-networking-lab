@@ -1,0 +1,32 @@
+# roles/overlay_base/tasks/main.yml (L2 foundation only)
+
+- name: Enable EVPN address-family (already in underlay, but ensure)
+  nvidia.nvue.router.bgp.address_family:
+    l2vpn_evpn:
+      enable: true
+
+- name: Enable ARP / ND suppression globally
+  nvidia.nvue.evpn:
+    arp_suppression: true
+    nd_suppression: true
+
+- name: Create L2VNIs + map to bridge ports
+  nvidia.nvue.vxlan:
+    loop: "{{ common_vlans }}"
+    vars:
+      vlan_id: "{{ item.vlan }}"
+      vni_id: "{{ item.vni | default(item.vlan) }}"
+    nvidia.nvue.vxlan:
+      name: "vni{{ vni_id }}"
+      vxlan_id: "{{ vni_id }}"
+      source_interface: lo
+      bridge_domain: bridge
+      vlan: "{{ vlan_id }}"
+      state: present
+
+- name: Ensure bridge has VLAN members
+  nvidia.nvue.bridge:
+    vlan:
+      "{{ item.vlan }}":
+        state: present
+    loop: "{{ common_vlans }}"

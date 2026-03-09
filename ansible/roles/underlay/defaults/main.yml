@@ -1,0 +1,8 @@
+---
+# ansible/roles/underlay/defaults/main.yml
+
+# Fallbacks if not set in group_vars
+bgp_as_base_spine: 65000
+bgp_as_base_leaf:  65100
+
+loopback_pool_base: 10.10.0.0/24   # example subnet - node_number offsets from here
