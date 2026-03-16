@@ -18,7 +18,7 @@ ansible_password  = "{{ ansible_password }}"
 ansible_become    = yes
 ansible_become_method = sudo
 ansible_become_pass   = "{{ ansible_become_pass }}"   
-ansible_network_os    = cumulus
+; ansible_network_os    = cumulus
 ansible_connection    = network_cli
 timezone              = Etc/UTC
 
