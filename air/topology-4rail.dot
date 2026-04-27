@@ -1,13 +1,13 @@
 graph "4_Rail_HPC_Lab" {
     // Spine Switches
-    "spine01" [function="spine" os="cumulus-vx-5.10.1" cpu="2" memory="4096"]
-    "spine02" [function="spine" os="cumulus-vx-5.10.1" cpu="2" memory="4096"]
+    "spine01" [function="spine" os="cumulus-vx-5.15.1" cpu="2" memory="4096"]
+    "spine02" [function="spine" os="cumulus-vx-5.15.1" cpu="2" memory="4096"]
 		
     // Leaf Switches (The Rails)
-    "leaf01" [function="leaf" os="cumulus-vx-5.10.1" cpu="2" memory="4096"]
-    "leaf02" [function="leaf" os="cumulus-vx-5.10.1" cpu="2" memory="4096"]
-    "leaf03" [function="leaf" os="cumulus-vx-5.10.1" cpu="2" memory="4096"]
-    "leaf04" [function="leaf" os="cumulus-vx-5.10.1" cpu="2" memory="4096"]
+    "leaf01" [function="leaf" os="cumulus-vx-5.15.1" cpu="2" memory="4096"]
+    "leaf02" [function="leaf" os="cumulus-vx-5.15.1" cpu="2" memory="4096"]
+    "leaf03" [function="leaf" os="cumulus-vx-5.15.1" cpu="2" memory="4096"]
+    "leaf04" [function="leaf" os="cumulus-vx-5.15.1" cpu="2" memory="4096"]
 
     // Servers (Optimized for your limits)
     "srv01" [function="server" os="generic/ubuntu2204" cpu="1" memory="2048"]
